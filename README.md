@@ -49,7 +49,7 @@ v-credit-case/
 ├── README.md
 ├── job.yaml              # Definição do job Databricks (8 tasks Bronze)
 ├── to_Bronze/
-│   ├── utils.py          # Notebook de setup e funções compartilhadas
+│   ├── utils.ipynb          # Notebook de setup e funções compartilhadas
 │   ├── atendentes.ipynb
 │   ├── canais.ipynb
 │   ├── chamados.ipynb
@@ -59,7 +59,7 @@ v-credit-case/
 │   ├── motivos.ipynb
 │   └── pesquisas_de_satisfacao.ipynb
 └── to_Silver/
-    └── utils.py          # Notebook de setup do schema Silver
+    └── utils.ipynb          # Notebook de setup do schema Silver
 ```
 
 Todos os arquivos `.ipynb` começam com `# Databricks notebook source`, portanto são **notebooks do Databricks** (e não módulos Python importáveis). Eles são reutilizados com `%run`, não com `import`.
@@ -107,7 +107,7 @@ Cada notebook da Bronze (um por tabela) tem a mesma estrutura de três passos:
 2. Cria os widgets `expected_file` e `table_name` com valores padrão.
 3. Chama `load_df(expected_file)` e depois `save_df(df, table_name)`.
 
-Exemplo (`to_Bronze/clientes.py`):
+Exemplo (`to_Bronze/clientes.ipynb`):
 
 ```python
 # MAGIC %run ./utils
@@ -126,7 +126,7 @@ save_df(df, table_name)
 
 ## Como funciona o notebook `utils`
 
-Existe um `utils` em cada camada (`to_Bronze/utils.py` e `to_Silver/utils.py`). Ele é um **notebook**, executado com `%run ./utils` no início de cada notebook da camada. Como o `%run` roda no mesmo contexto do notebook chamador, o `utils` enxerga `dbutils`, `spark` e os widgets, e tudo o que ele define (variáveis e funções) fica disponível no notebook que o chamou.
+Existe um `utils` em cada camada (`to_Bronze/utils.ipynb` e `to_Silver/utils.ipynb`). Ele é um **notebook**, executado com `%run ./utils` no início de cada notebook da camada. Como o `%run` roda no mesmo contexto do notebook chamador, o `utils` enxerga `dbutils`, `spark` e os widgets, e tudo o que ele define (variáveis e funções) fica disponível no notebook que o chamou.
 
 ### `to_Bronze/utils.py`
 
@@ -167,7 +167,7 @@ Grava o DataFrame na Bronze.
 - Adiciona `ingestion_datetime = current_timestamp()`.
 - Escreve em Delta no modo `append` em `{bronze_schema}.{table_name}`, criando a tabela se ela não existir.
 
-### `to_Silver/utils.py`
+### `to_Silver/utils.ipynb`
 
 Versão enxuta, por enquanto só com o preâmbulo: widget `catalog`, variável `silver_schema = "{catalog}.silver"` e criação do catálogo e do schema Silver. Ainda **não há funções compartilhadas** (equivalentes ao `load_df` e `save_df`).
 
@@ -202,7 +202,7 @@ Cada task passa os parâmetros `catalog`, `expected_file` e `table_name` via `ba
 
 ## Camada Silver
 
-Em construção. Hoje existe apenas `to_Silver/utils.py` (setup do schema `{catalog}.silver`). A primeira frente de trabalho é a limpeza da base de motivos (branch `16-silver-limpar-base-de-motivos`).
+Em construção. Hoje existe apenas `to_Silver/utils.ipynb` (setup do schema `{catalog}.silver`). A primeira frente de trabalho é a limpeza da base de motivos (branch `16-silver-limpar-base-de-motivos`).
 
 ---
 
