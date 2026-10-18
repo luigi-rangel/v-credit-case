@@ -50,14 +50,14 @@ v-credit-case/
 ├── job.yaml              # Definição do job Databricks (8 tasks Bronze)
 ├── to_Bronze/
 │   ├── utils.py          # Notebook de setup e funções compartilhadas
-│   ├── atendentes.py
-│   ├── canais.py
-│   ├── chamados.py
-│   ├── chamados_hora.py
-│   ├── clientes.py
-│   ├── custos.py
-│   ├── motivos.py
-│   └── pesquisas_de_satisfacao.py
+│   ├── atendentes.ipynb
+│   ├── canais.ipynb
+│   ├── chamados.ipynb
+│   ├── chamados_hora.ipynb
+│   ├── clientes.ipynb
+│   ├── custos.ipynb
+│   ├── motivos.ipynb
+│   └── pesquisas_de_satisfacao.ipynb
 └── to_Silver/
     └── utils.py          # Notebook de setup do schema Silver
 ```
