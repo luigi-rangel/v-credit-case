@@ -128,7 +128,7 @@ save_df(df, table_name)
 
 Existe um `utils` em cada camada (`to_Bronze/utils.ipynb` e `to_Silver/utils.ipynb`). Ele é um **notebook**, executado com `%run ./utils` no início de cada notebook da camada. Como o `%run` roda no mesmo contexto do notebook chamador, o `utils` enxerga `dbutils`, `spark` e os widgets, e tudo o que ele define (variáveis e funções) fica disponível no notebook que o chamou.
 
-### `to_Bronze/utils.py`
+### `to_Bronze/utils.ipynb`
 
 O notebook tem três células.
 
