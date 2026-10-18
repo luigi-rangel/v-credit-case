@@ -5,68 +5,72 @@ resources:
       tasks:
         - task_key: bronze-atendentes
           notebook_task:
-            notebook_path: /Workspace/Users/luigimsrangel@gmail.com/v-credit-case/to_Bronze/atendentes
+            notebook_path: to_Bronze/atendentes
             base_parameters:
               catalog: v_credit_case
               expected_file: base_atendentes.csv
               table_name: tb_atendentes
-            source: WORKSPACE
+            source: GIT
         - task_key: bronze-canais
           notebook_task:
-            notebook_path: /Workspace/Users/luigimsrangel@gmail.com/v-credit-case/to_Bronze/canais
+            notebook_path: to_Bronze/canais
             base_parameters:
               catalog: v_credit_case
               expected_file: canais.csv
               table_name: tb_canais
-            source: WORKSPACE
+            source: GIT
         - task_key: bronze-chamados
           notebook_task:
-            notebook_path: /Workspace/Users/luigimsrangel@gmail.com/v-credit-case/to_Bronze/chamados
+            notebook_path: to_Bronze/chamados
             base_parameters:
               catalog: v_credit_case
               expected_file: chamados.csv
               table_name: tb_chamados
-            source: WORKSPACE
+            source: GIT
         - task_key: bronze-chamados-hora
           notebook_task:
-            notebook_path: /Workspace/Users/luigimsrangel@gmail.com/v-credit-case/to_Bronze/chamados_hora
+            notebook_path: to_Bronze/chamados_hora
             base_parameters:
               catalog: v_credit_case
               expected_file: Chamados_Hora.CSV
               table_name: tb_chamados_hora
-            source: WORKSPACE
+            source: GIT
         - task_key: bronze-clientes
           notebook_task:
-            notebook_path: /Workspace/Users/luigimsrangel@gmail.com/v-credit-case/to_Bronze/clientes
+            notebook_path: to_Bronze/clientes
             base_parameters:
               catalog: v_credit_case
               expected_file: clientes.csv
               table_name: tb_clientes
-            source: WORKSPACE
+            source: GIT
         - task_key: bronze-custos
           notebook_task:
-            notebook_path: /Workspace/Users/luigimsrangel@gmail.com/v-credit-case/to_Bronze/custos
+            notebook_path: to_Bronze/custos
             base_parameters:
               catalog: v_credit_case
               expected_file: custos.csv
               table_name: tb_custos
-            source: WORKSPACE
+            source: GIT
         - task_key: bronze-motivos
           notebook_task:
-            notebook_path: /Workspace/Users/luigimsrangel@gmail.com/v-credit-case/to_Bronze/motivos
+            notebook_path: to_Bronze/motivos
             base_parameters:
               catalog: v_credit_case
               expected_file: base_motivos.csv
               table_name: tb_motivos
-            source: WORKSPACE
+            source: GIT
         - task_key: bronze-pesquisas-de-satisfacao
           notebook_task:
-            notebook_path: /Workspace/Users/luigimsrangel@gmail.com/v-credit-case/to_Bronze/pesquisas_de_satisfacao
+            notebook_path: to_Bronze/pesquisas_de_satisfacao
             base_parameters:
               catalog: v_credit_case
               expected_file: pesquisa_satisfacao.csv
               table_name: tb_pesquisas_de_satisfacao
-            source: WORKSPACE
+            source: GIT
+      git_source:
+        git_url: https://github.com/luigi-rangel/v-credit-case
+        git_provider: gitHub
+        git_branch: main
       queue:
         enabled: true
       performance_target: PERFORMANCE_OPTIMIZED
