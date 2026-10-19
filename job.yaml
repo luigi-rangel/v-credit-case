@@ -85,8 +85,8 @@ resources:
             notebook_path: to_Silver/custos
             base_parameters:
               catalog: v_credit
-              bronze_table_name: custos
-              silver_table_name: custos
+              bronze_table_name: tb_custos
+              silver_table_name: tb_custos
             source: GIT
           environment_key: Default
         - task_key: silver-motivos
