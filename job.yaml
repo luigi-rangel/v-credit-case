@@ -78,6 +78,17 @@ resources:
               silver_table_name: tb_canais
             source: GIT
           environment_key: Default
+        - task_key: silver-custos
+          depends_on:
+            - task_key: bronze-custos
+          notebook_task:
+            notebook_path: to_Silver/custos
+            base_parameters:
+              catalog: v_credit
+              bronze_table_name: custos
+              silver_table_name: custos
+            source: GIT
+          environment_key: Default
         - task_key: silver-motivos
           depends_on:
             - task_key: bronze-motivos
