@@ -67,10 +67,47 @@ resources:
               expected_file: pesquisa_satisfacao.csv
               table_name: tb_pesquisas_de_satisfacao
             source: GIT
+        - task_key: silver-canais
+          depends_on:
+            - task_key: bronze-canais
+          notebook_task:
+            notebook_path: to_Silver/canais
+            base_parameters:
+              catalog: v_credit_case
+              bronze_table_name: tb_canais
+              silver_table_name: tb_canais
+            source: GIT
+          environment_key: Default
+        - task_key: silver-motivos
+          depends_on:
+            - task_key: bronze-motivos
+          notebook_task:
+            notebook_path: to_Silver/motivos
+            base_parameters:
+              catalog: v_credit_case
+              bronze_table_name: tb_motivos
+              silver_table_name: tb_motivos
+            source: GIT
+          environment_key: Default
+        - task_key: silver-atendentes
+          depends_on:
+            - task_key: bronze-atendentes
+          notebook_task:
+            notebook_path: to_Silver/atendentes
+            base_parameters:
+              catalog: v_credit_case
+              bronze_table_name: tb_atendentes
+              silver_table_name: tb_atendentes
+            source: GIT
+          environment_key: Default
       git_source:
         git_url: https://github.com/luigi-rangel/v-credit-case
         git_provider: gitHub
         git_branch: main
       queue:
         enabled: true
+      environments:
+        - environment_key: Default
+          spec:
+            environment_version: "6"
       performance_target: PERFORMANCE_OPTIMIZED
