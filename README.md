@@ -59,6 +59,13 @@ v-credit-case/
 │   ├── motivos.ipynb
 │   └── pesquisas_de_satisfacao.ipynb
 └── to_Silver/
+│   ├── atendentes.ipynb
+│   ├── canais.ipynb
+│   ├── chamados.ipynb
+│   ├── chamados_hora.ipynb
+│   ├── clientes.ipynb
+│   ├── custos.ipynb
+│   ├── motivos.ipynb
     └── utils.ipynb          # Notebook de setup do schema Silver
 ```
 
