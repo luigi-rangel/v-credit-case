@@ -62,7 +62,7 @@ v-credit-case/
     └── utils.ipynb          # Notebook de setup do schema Silver
 ```
 
-Todos os arquivos `.ipynb` começam são **notebooks do Databricks** (e não módulos Python importáveis). Eles são reutilizados com `%run`, não com `import`.
+Todos os arquivos `.ipynb` são **notebooks do Databricks** (e não módulos Python importáveis). Eles são reutilizados com `%run`, não com `import`.
 
 ---
 
