@@ -176,7 +176,39 @@ Grava o DataFrame na Bronze.
 
 ### `to_Silver/utils.ipynb`
 
-Versão enxuta, por enquanto só com o preâmbulo: widget `catalog`, variável `silver_schema = "{catalog}.silver"` e criação do catálogo e do schema Silver. Ainda **não há funções compartilhadas** (equivalentes ao `load_df` e `save_df`).
+O notebook tem cinco células. Assim como na Bronze, é executado com `%run ./utils` no início de cada notebook da camada, e as variáveis e funções definidas nele ficam disponíveis no notebook chamador.
+
+**1. Preâmbulo de configuração**
+
+Funciona de forma semelhante ao preâmbulo da Bronze: cria o widget `catalog`, define as variáveis de schema (`bronze_schema` e `silver_schema`) e cria o catálogo e os schemas **se ainda não existirem**. Também importa `pyspark.sql.functions` como `F`, usado pelas funções do notebook.
+
+**2. `save_df(df, table_name)`**
+
+Grava o DataFrame na Silver.
+
+- Escreve em Delta no modo `overwrite` em `{silver_schema}.{table_name}`, com `overwriteSchema=true`.
+- A tabela é **reconstruída por completo a cada execução**, a partir do que está na Bronze. Esse é o contraste com a Bronze, que usa `append`.
+- Com `overwriteSchema`, mudanças de colunas e tipos no tratamento são refletidas na tabela sem etapa manual.
+
+**3. `dq_check(table_name, check_name, df, condition)`**
+
+Checagem de qualidade baseada em uma condição esperada.
+
+- Recebe a tabela e o nome da checagem (usados na mensagem) e uma condição do Spark que **toda linha deve satisfazer**, por exemplo `F.col("valor") > 0`.
+- Conta o total de linhas e quantas violam a condição.
+- Imprime no log uma linha no formato `[PASS|FAIL] tabela | checagem | X/Y linhas falharam`. O status é `PASS` quando nenhuma linha falha.
+
+**4. `dq_check_unique(table_name, check_name, df, key_cols)`**
+
+Checagem de qualidade específica para unicidade de chave.
+
+- Recebe a lista de colunas que formam a chave (`key_cols`).
+- Agrupa por essas colunas e conta quantas chaves aparecem mais de uma vez.
+- Imprime no log `[PASS|FAIL] tabela | checagem | X chaves duplicadas de Y linhas`. O status é `PASS` quando não há chaves duplicadas.
+
+**5. `cast_id_to_string(df, prefix="^id(_|$)")`**
+
+Converte para `string` as colunas de identificador do DataFrame, padronizando o tipo dos ids entre as tabelas (por exemplo, para que as chaves de junção tenham o mesmo tipo dos dois lados). As colunas são selecionadas pelo nome, e as demais permanecem inalteradas.
 
 ### Parâmetros dos notebooks
 
