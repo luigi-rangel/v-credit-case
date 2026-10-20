@@ -111,6 +111,17 @@ resources:
               silver_table_name: tb_atendentes
             source: GIT
           environment_key: Default
+        - task_key: silver-clientes
+          depends_on:
+            - task_key: bronze-clientes
+          notebook_task:
+            notebook_path: to_Silver/clientes
+            base_parameters:
+              catalog: v_credit_case
+              bronze_table_name: tb_clientes
+              silver_table_name: tb_clientes
+            source: GIT
+          environment_key: Default
       git_source:
         git_url: https://github.com/luigi-rangel/v-credit-case
         git_provider: gitHub
