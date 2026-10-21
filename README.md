@@ -2,7 +2,7 @@
 
 Pipeline de dados no **Databricks** para o caso de competição V-Credit. O projeto segue a **arquitetura medalhão** (Landing → Bronze → Silver → Gold), usando Unity Catalog, Delta Lake e Workflows (Jobs).
 
-> **Estado atual:** a camada Bronze está implementada (8 tabelas ingeridas a partir de CSVs) e a camada Silver (7 notebooks de transformação de dados) estão implementadas. A camada Gold tem apenas o setup de ambiente.
+> **Estado atual:** a camada Bronze (8 tabelas ingeridas a partir de CSVs) e a camada Silver (8 tabelas com os dados transformados) estão implementadas. A camada Gold tem apenas o setup de ambiente.
 
 ---
 
@@ -174,7 +174,7 @@ O notebook tem cinco células. Assim como na Bronze, é executado com `%run ./ut
 
 **1. Preâmbulo de configuração**
 
-Funciona de forma semelhante ao preâmbulo da Bronze: cria o widget `catalog`, define as variáveis de schema (`bronze_schema` e `silver_schema`) e cria o catálogo e os schemas **se ainda não existirem**. Também importa `pyspark.sql.functions` como `F`, usado pelas funções do notebook.
+Funciona de forma semelhante ao preâmbulo da Bronze: cria o widget `catalog`, define as variáveis de schema (`bronze_schema` e `silver_schema`) e cria o catálogo e os dois schemas **se ainda não existirem**. Também importa `pyspark.sql.functions` como `F`, necessário para as funções do `utils`. Imports adicionais (como `Window`) ficam em cada notebook.
 
 **2. `save_df(df, table_name)`**
 
@@ -206,11 +206,13 @@ Converte para `string` as colunas de identificador do DataFrame, padronizando o 
 
 ### Parâmetros dos notebooks
 
-| Widget | Definido em | Padrão | Função |
-|---|---|---|---|
-| `catalog` | `utils` | `v_credit_case` | Catálogo de destino |
-| `expected_file` | notebook da tabela | nome do CSV | Arquivo lido do volume de landing |
-| `table_name` | notebook da tabela | `tb_*` | Tabela Bronze de destino |
+| Widget | Camada | Definido em | Padrão | Função |
+|---|---|---|---|---|
+| `catalog` | Bronze e Silver | `utils` | `v_credit_case` | Catálogo de destino |
+| `expected_file` | Bronze | notebook da tabela | nome do CSV | Arquivo lido do volume de landing |
+| `table_name` | Bronze | notebook da tabela | `tb_*` | Tabela Bronze de destino |
+| `bronze_table_name` | Silver | notebook da tabela | `tb_*` | Tabela Bronze de origem |
+| `silver_table_name` | Silver | notebook da tabela | `tb_*` | Tabela Silver de destino |
 
 ---
 
@@ -235,7 +237,7 @@ Cada task passa os parâmetros `catalog`, `expected_file` e `table_name` via `ba
 
 ## Camada Silver
 
-A Silver é a camada de **tratamento e enriquecimento dos dados**: lê cada tabela da Bronze, corrige os tipos, nulos texto e inconsistências, remove duplicatas, aplica regras de negócio pontuais e grava o resultado em uma tabela Delta, reconstruída a cada execução.
+A Silver é a camada de **tratamento dos dados**: lê cada tabela da Bronze, corrige tipos, trata nulos e textos, resolve inconsistências, remove duplicatas, aplica regras de negócio pontuais e grava o resultado em uma tabela Delta, reconstruída a cada execução.
 
 - **Schema:** `{catalog}.silver`
 - **Origem:** tabelas Delta de `{catalog}.bronze` 
@@ -243,17 +245,89 @@ A Silver é a camada de **tratamento e enriquecimento dos dados**: lê cada tabe
 - **Modo de escrita:** `overwrite` 
 - **Regras de negócio:**
   - `atendentes`: categorização dos atendentes por nível de atendimento
-  - `chamados`: cálculo do tempo de espera e do tempo de atendimento
+  - `chamados_hora`: cálculo do tempo de espera e do tempo de atendimento
 
-Cada notebook da camada Silver segue as mesmas etapas:
+Cada notebook da camada Silver segue, em geral, as mesmas etapas:
 
 1. `%run ./utils` para configurar o ambiente e carregar as funções.
-2. Lê a tabela correspondente da Bronze através dos widgets.
-3. **Deduplicação:** mantém apenas o registro mais recente de cada chave primária, usando `row_number()` sobre uma janela particionada pela chave e ordenada por `ingestion_datetime` decrescente. Depois do filtro `rn == 1`, as colunas `rn` e `ingestion_datetime` são descartadas, então as tabelas Silver não têm a coluna de auditoria.
-4. **Transformações específicas** de cada tabela (conversão de tipos, limpeza de texto, correções e regras de negócio, detalhadas abaixo).
-5. Checagens de qualidade com `dq_check` e `dq_check_unique`.
-6. Chama `save_df(df, table_name)`.
+2. Cria o widget `bronze_table_name` (padrão `tb_*`) e lê a tabela correspondente de `{catalog}.bronze`, selecionando as colunas de interesse e `ingestion_datetime`.
+3. **Deduplicação:** mantém apenas o registro mais recente de cada chave primária, usando `row_number()` sobre uma janela particionada pela chave e ordenada por `ingestion_datetime` decrescente. Depois do filtro, `rn` e `ingestion_datetime` são descartadas, então as tabelas Silver não têm coluna de auditoria.
+4. **Transformações específicas** de cada tabela: conversão de tipos, limpeza de texto, correção de inconsistências e regras de negócio (ver tabela abaixo).
+5. Cria o widget `silver_table_name` (padrão `tb_*`) e chama `save_df(df, silver_table_name)`.
 
+### Resumo por tabela
+
+| Tabela Silver | Chave de deduplicação | Regra de negócio | Checagens |
+|---|---|---|---|
+| `tb_atendentes` | `id_atendente` (a confirmar) | Padronização do nível de atendimento (`1` ou `2`) | Sim (3) |
+| `tb_canais` | `id_canal` | Nenhuma | Não |
+| `tb_chamados` | a preencher | a preencher | a preencher |
+| `tb_chamados_hora` | `id_chamado` (a confirmar) | Tempos de espera e de atendimento, em segundos | Não |
+| `tb_clientes` | `id_cliente` | Nenhuma | Sim (2) |
+| `tb_custos` | `id_custo` ou (`id_chamado`, `id_custo`) (a confirmar) | Nenhuma | Sim (2) |
+| `tb_motivos` | `id_motivo` | Nenhuma | Não |
+| `tb_pesquisas_de_satisfacao` | a preencher | a preencher | a preencher |
+
+As checagens (`dq_check` e `dq_check_unique`) apenas registram `PASS` ou `FAIL` no log e não interrompem a execução do notebook. Cada notebook posiciona as checagens conforme o que quer medir: antes do tratamento (para medir o problema na origem) ou depois (para validar o resultado).
+
+### Tratamentos por tabela
+
+#### `tb_atendentes`
+- **Chave:** `id_atendente` (a confirmar)
+- **Tipos:** `id_atendente` → `string`
+- **Limpeza:** `nivel_atendimento` padronizado: "1" e "Nível 1" → `1`; "2", "Nível 2" e "N2" → `2`; demais valores permanecem como estão
+- **Regra de negócio:** padronização do nível de atendimento em dois níveis (`1` e `2`)
+- **Checagens (`dq_check`):**
+  - níveis de atendimento devem estar padronizados
+  - data de desligamento deve ser posterior à data de admissão
+  - `status_atendente = "inativo"` só é permitido após o desligamento (conferir o valor exato no código)
+
+#### `tb_canais`
+- **Chave:** `id_canal`
+- **Tipos:** `id_canal` → `string`
+- **Limpeza:** nenhuma
+- **Checagens:** nenhuma
+
+#### `tb_chamados`
+- a preencher
+
+#### `tb_chamados_hora`
+- **Chave:** `id_chamado` (a confirmar)
+- **Tipos:** `id_chamado` e `id_cliente` → `string`; colunas de hora → `timestamp`
+- **Limpeza:**
+  - colunas renomeadas para minúsculas (`ID_Chamado` → `id_chamado`, `ID_Cliente` → `id_cliente`)
+  - correção do ano de `hora_abertura_chamado` com base na hora de início (ou de finalização, se o início for nulo), quando dia e mês coincidem
+  - soma de 1 dia à finalização quando ela é anterior ao início (virada de meia-noite)
+- **Regra de negócio:** `tempo_espera_segundos` (início − abertura) e `tempo_atendimento_segundos` (finalização − início)
+- **Checagens:** nenhuma
+
+#### `tb_clientes`
+- **Chave:** `id_cliente`
+- **Tipos:** `id_cliente` → `string`; `idade` → `int`; `data_cadastro` → `date` (`dd/MM/yyyy` ou `yyyy-MM-dd`); `dia_vencimento_fatura` → `int`
+- **Limpeza:**
+  - `nome`: `trim` + `upper`
+  - `email`: sem espaços, em maiúsculas, `@` recuperado quando o domínio é conhecido, `NULL` se inválido (flag `email_corrigido`)
+  - `regiao`: validada contra as 5 regiões do Brasil (`NULL` se inválida)
+  - `idade`: válida entre 18 e 110 (`NULL` fora disso)
+  - `dia_vencimento_fatura`: válido entre 1 e 28 (`NULL` fora disso)
+- **Checagens (`dq_check`, antes do tratamento):** `idade` nula na origem; `idade` fora do intervalo de 18 a 110
+
+#### `tb_custos`
+- **Chave:** `id_custo` ou (`id_chamado`, `id_custo`) (a confirmar)
+- **Tipos:** `id_custo` e `id_chamado` → `string`; `custo` → `decimal(18,2)`
+- **Limpeza:** `custo` sem texto de moeda (`R$`, `real`, `reais`) e com vírgula decimal trocada por ponto; valores negativos preservados
+- **Checagens:** `dq_check_unique` da chave composta (`id_chamado`, `id_custo`); `dq_check` de preservação dos custos negativos
+
+#### `tb_motivos`
+- **Chave:** `id_motivo`
+- **Tipos:** `id_motivo` → `string`
+- **Limpeza:**
+  - `categoria` e `criticidade`: `trim` + `upper`
+  - `categoria` reclassificada para `CARTAO` ("Contratação de cartão adicional") e `CADASTRAL` ("Transferência de agência", "Cancelamento de conta")
+- **Checagens:** nenhuma
+
+#### `tb_pesquisas_de_satisfacao`
+- a preencher
 ---
 
 ## Como executar
