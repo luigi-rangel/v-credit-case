@@ -373,12 +373,15 @@ As checagens (`dq_check` e `dq_check_unique`) apenas registram `PASS` ou `FAIL` 
 ## Como executar
 
 1. **Clonar o repositório** em um Git folder do Databricks (Repos).
-2. **Rodar `to_Bronze/utils` uma vez** para criar o catálogo, o schema e o volume.
+2. **Rodar `to_Bronze/utils` uma vez** para criar o catálogo, o schema e o volume. O `to_Silver/utils` cria o schema Silver e roda automaticamente junto com cada notebook da Silver.
 3. **Enviar os CSVs** para `/Volumes/v_credit_case/bronze/landing`, com os nomes da tabela acima.
 4. **Executar:**
-   - Um notebook isolado (por exemplo, `to_Bronze/clientes`), ou
-   - O job **V-Credit-Case** completo, que roda as 8 ingestões em paralelo.
-5. **Conferir as tabelas** em `v_credit_case.bronze`.
+   - Um notebook isolado, respeitando a ordem das camadas: primeiro o da Bronze (por exemplo, `to_Bronze/clientes`) e depois o da Silver (por exemplo, `to_Silver/clientes`), ou
+   - O job **V-Credit-Case** completo, que roda as 8 ingestões em paralelo e cada task da silver após a ingestão de sua tabela corresponente.
+5. **Conferir as tabelas:**
+   - Em `v_credit_case.bronze`, com as colunas `source_file` e `ingestion_datetime`.
+   - Em `v_credit_case.silver`, onde os dados já estão deduplicados e tratados.
+
 
 Para usar outro catálogo, passe o parâmetro `catalog` no job ou altere o widget no notebook.
 
