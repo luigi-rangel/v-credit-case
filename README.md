@@ -241,19 +241,17 @@ A Silver é a camada de **tratamento e enriquecimento dos dados**: lê cada tabe
 - **Origem:** tabelas Delta de `{catalog}.bronze` 
 - **Formato:** Delta
 - **Modo de escrita:** `overwrite` 
-- **Tratamento:** limpeza técnica (tipos, nulos, texto), padronização de ids para `string`, correção de inconsistências e deduplicação
 - **Regras de negócio:**
   - `atendentes`: categorização dos atendentes por nível de atendimento
   - `chamados`: cálculo do tempo de espera e do tempo de atendimento
-- **Qualidade de dados:** checagens `dq_check` e `dq_check_unique` aplicadas
 
-Cada notebook da Camada Silver conta com as seguintes etapas
+Cada notebook da camada Silver segue as mesmas etapas:
 
 1. `%run ./utils` para configurar o ambiente e carregar as funções.
-2. Cria os widgets `expected_file` e `table_name` com valores padrão.
-3. Chama `load_df(expected_file)`.
-4. Deduplicação pelo timestamp `ingestion_datetime`.
-5. Transformação de dados de acordo com necessidade de cada dataframe.
+2. Lê a tabela correspondente da Bronze através dos widgets.
+3. **Deduplicação:** mantém apenas o registro mais recente de cada chave primária, usando `row_number()` sobre uma janela particionada pela chave e ordenada por `ingestion_datetime` decrescente. Depois do filtro `rn == 1`, as colunas `rn` e `ingestion_datetime` são descartadas, então as tabelas Silver não têm a coluna de auditoria.
+4. **Transformações específicas** de cada tabela (conversão de tipos, limpeza de texto, correções e regras de negócio, detalhadas abaixo).
+5. Checagens de qualidade com `dq_check` e `dq_check_unique`.
 6. Chama `save_df(df, table_name)`.
 
 ---
