@@ -94,19 +94,40 @@ O volume é criado pelo `utils`, mas **o upload dos arquivos é manual**. Os nom
 
 ## Camada Bronze
 
-A Bronze é uma ingestão **sem transformação de negócio**: lê o CSV, adiciona a coluna `ingestion_datetime` e grava em uma tabela Delta.
+A Bronze é uma ingestão **incremental e sem transformação de negócio**: lê em streaming apenas os CSVs novos do volume de landing, adiciona a coluna `ingestion_datetime` e grava em uma tabela Delta.
 
 - **Schema:** `{catalog}.bronze`
 - **Formato:** Delta
-- **Modo de escrita:** `append`
-- **Leitura do CSV:** `header=True` e `inferSchema=True`
-- **Coluna de auditoria:** `ingestion_datetime` (timestamp da ingestão)
+- **Modo de escrita:** `writeStream` em modo `append`, com `trigger(availableNow=True)` e `checkpointLocation` por tabela
+- **Leitura do CSV:** Auto Loader (`readStream` com `cloudFiles`), CSV com `header=true` e inferência de tipos (`cloudFiles.inferColumnTypes`), restrita ao arquivo esperado por `pathGlobFilter`
+- **Colunas de auditoria:** `
+    - `ingestion_datetime` (timestamp da ingestão)
+    - `source_file`:  caminho do arquivo de origem
+    - `_rescued_data`: adicionada automaticamente pelo Auto Loader com dados que não couberam no esquema inferido
+
+### Por que ingestão em streaming
+
+Os CSVs chegam ao volume de landing em cargas manuais, e o job pode ser reexecutado a qualquer momento (retentativa de uma task, rerun manual ou nova carga na mesma pasta). Com uma leitura em lote seguida de `append`, cada reexecução gravaria de novo todos os arquivos já ingeridos, e a Bronze acumularia registros repetidos.
+
+### O que a deduplicação da Bronze garante (e o que não garante)
+
+| Situação | Tratamento |
+|---|---|
+| Mesmo arquivo processado novamente | Ignorado (checkpoint) |
+| Arquivo já processado e depois substituído com o mesmo nome | **Não é relido** (comportamento padrão do Auto Loader), então a correção precisa de um novo arquivo |
+| Mesmo conteúdo enviado com nomes diferentes | Ingerido duas vezes |
+| Linhas repetidas dentro de um arquivo | Mantidas (a Bronze é cópia fiel) |
+| Checkpoint apagado | O arquivo é reprocessado e gera duplicatas |
+
+### Reingestão do zero
+
+Para reingerir um arquivo desde o início, é preciso apagar a tabela Bronze correspondente e o seu checkpoint (`/Volumes/{catalog}/bronze/checkpoints/{table_name}`). Se o esquema do arquivo mudou, apague também `/Volumes/{catalog}/bronze/checkpoints/schemas/{nome_do_arquivo_sem_extensao}`.
 
 Cada notebook da Bronze (um por tabela) tem a mesma estrutura de três passos:
 
 1. `%run ./utils` para configurar o ambiente e carregar as funções.
 2. Cria os widgets `expected_file` e `table_name` com valores padrão.
-3. Chama `load_df(expected_file)` e depois `save_df(df, table_name)`.
+3. Chama `load_df(expected_file)` e depois `save_df(df, table_name)`. O `load_df` devolve um DataFrame de streaming, e o `save_df` inicia o stream e aguarda o término.
 
 Exemplo (`to_Bronze/clientes.ipynb`):
 
