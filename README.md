@@ -2,7 +2,7 @@
 
 Pipeline de dados no **Databricks** para o caso de competição V-Credit. O projeto segue a **arquitetura medalhão** (Landing → Bronze → Silver → Gold), usando Unity Catalog, Delta Lake e Workflows (Jobs).
 
-> **Estado atual:** a camada Bronze está implementada (8 tabelas ingeridas a partir de CSVs). A camada Silver tem apenas o setup de ambiente. A camada Gold ainda não foi iniciada.
+> **Estado atual:** a camada Bronze está implementada (8 tabelas ingeridas a partir de CSVs) e a camada Silver (7 notebooks de transformação de dados) estão implementadas. A camada Gold tem apenas o setup de ambiente.
 
 ---
 
@@ -35,8 +35,8 @@ flowchart LR
 |---|---|---|---|
 | **Landing** | Volume `v_credit_case.bronze.landing` | Arquivos CSV exatamente como recebidos | Criada automaticamente (arquivos são enviados manualmente) |
 | **Bronze** | Schema `v_credit_case.bronze` | Cópia fiel dos CSVs em tabelas Delta, com coluna de auditoria | Implementada |
-| **Silver** | Schema `v_credit_case.silver` | Dados limpos, tipados e padronizados | Somente setup (`utils`) |
-| **Gold** | A definir | Modelo analítico para Power BI e análise | Não iniciada |
+| **Silver** | Schema `v_credit_case.silver` | Dados limpos, tipados e padronizados | Implementada |
+| **Gold** | A definir | Modelo analítico para Power BI e análise | Somente setup (`utils`) |
 
 O nome do catálogo (`v_credit_case`) é parametrizável por widget, então o mesmo código pode rodar em outro ambiente.
 
@@ -59,15 +59,9 @@ v-credit-case/
 │   ├── motivos.ipynb
 │   └── pesquisas_de_satisfacao.ipynb
 └── to_Silver/
-│   ├── atendentes.ipynb
-│   ├── canais.ipynb
-│   ├── chamados.ipynb
-│   ├── chamados_hora.ipynb
-│   ├── clientes.ipynb
-│   ├── custos.ipynb
-│   ├── motivos.ipynb
-    └── utils.ipynb          # Notebook de setup do schema Silver
+    └── ...          # Mesmos 9 notebooks de to_Bronze/ (utils + 8 tabelas)
 ```
+Cada tabela tem um notebook por camada, com o mesmo nome em `to_Bronze/` e `to_Silver/`. Já o `utils.ipynb` é específico de cada camada (ver [Como funciona o notebook `utils`](#como-funciona-o-notebook-utils))
 
 Todos os arquivos `.ipynb` são **notebooks do Databricks** (e não módulos Python importáveis). Eles são reutilizados com `%run`, não com `import`.
 
@@ -241,7 +235,26 @@ Cada task passa os parâmetros `catalog`, `expected_file` e `table_name` via `ba
 
 ## Camada Silver
 
-Em construção. Hoje existe apenas `to_Silver/utils.ipynb` (setup do schema `{catalog}.silver`). A primeira frente de trabalho é a limpeza da base de motivos (branch `16-silver-limpar-base-de-motivos`).
+A Silver é a camada de **tratamento e enriquecimento dos dados**: lê cada tabela da Bronze, corrige os tipos, nulos texto e inconsistências, remove duplicatas, aplica regras de negócio pontuais e grava o resultado em uma tabela Delta, reconstruída a cada execução.
+
+- **Schema:** `{catalog}.silver`
+- **Origem:** tabelas Delta de `{catalog}.bronze` 
+- **Formato:** Delta
+- **Modo de escrita:** `overwrite` 
+- **Tratamento:** limpeza técnica (tipos, nulos, texto), padronização de ids para `string`, correção de inconsistências e deduplicação
+- **Regras de negócio:**
+  - `atendentes`: categorização dos atendentes por nível de atendimento
+  - `chamados`: cálculo do tempo de espera e do tempo de atendimento
+- **Qualidade de dados:** checagens `dq_check` e `dq_check_unique` aplicadas
+
+Cada notebook da Camada Silver conta com as seguintes etapas
+
+1. `%run ./utils` para configurar o ambiente e carregar as funções.
+2. Cria os widgets `expected_file` e `table_name` com valores padrão.
+3. Chama `load_df(expected_file)`.
+4. Deduplicação pelo timestamp `ingestion_datetime`.
+5. Transformação de dados de acordo com necessidade de cada dataframe.
+6. Chama `save_df(df, table_name)`.
 
 ---
 
