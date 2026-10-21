@@ -218,9 +218,16 @@ Converte para `string` as colunas de identificador do DataFrame, padronizando o 
 
 ## Orquestração (job.yaml)
 
-O arquivo `job.yaml` define o job **V-Credit-Case** (Databricks Asset Bundle / Workflows) com **8 tasks de notebook**, uma para cada tabela Bronze. Elas não têm dependências entre si, então **rodam em paralelo**.
+O arquivo `job.yaml` define o job **V-Credit-Case** (Databricks Asset Bundle / Workflows) com **13 tasks de notebook**, 8 da Bronze (uma por tabela) e 5 da Silver. As tasks da Bronze não têm dependências entre si, então **rodam em paralelo**. Cada task da Silver declara `depends_on` da task Bronze da mesma tabela, então começa assim que a ingestão correspondente termina.
 
-Cada task passa os parâmetros `catalog`, `expected_file` e `table_name` via `base_parameters`, que sobrescrevem os padrões dos widgets. Configurações adicionais: fila habilitada (`queue.enabled: true`) e `performance_target: PERFORMANCE_OPTIMIZED`.
+Cada task passa os parâmetros  via `base_parameters`, que sobrescrevem os padrões dos widgets. 
+
+- **Bronze:** `catalog`, `expected_file` e `table_name`.
+- **Silver:** `catalog`, `bronze_table_name` e `silver_table_name`.
+
+Configurações adicionais: fila habilitada (`queue.enabled: true`) e `performance_target: PERFORMANCE_OPTIMIZED`.
+
+### Tasks da Bronze
 
 | task_key | Notebook | Arquivo | Tabela |
 |---|---|---|---|
@@ -232,6 +239,18 @@ Cada task passa os parâmetros `catalog`, `expected_file` e `table_name` via `ba
 | `bronze-custos` | `to_Bronze/custos` | `custos.csv` | `tb_custos` |
 | `bronze-motivos` | `to_Bronze/motivos` | `base_motivos.csv` | `tb_motivos` |
 | `bronze-pesquisas-de-satisfacao` | `to_Bronze/pesquisas_de_satisfacao` | `pesquisa_satisfacao.csv` | `tb_pesquisas_de_satisfacao` |
+
+### Tasks da Silver
+
+| task_key | Depende de | Notebook | Tabela de origem (Bronze) | Tabela de destino (Silver) |
+|---|---|---|---|---|
+| `silver-atendentes` | `bronze-atendentes` | `to_Silver/atendentes` | `tb_atendentes` | `tb_atendentes` |
+| `silver-canais` | `bronze-canais` | `to_Silver/canais` | `tb_canais` | `tb_canais` |
+| `silver-clientes` | `bronze-clientes` | `to_Silver/clientes` | `tb_clientes` | `tb_clientes` |
+| `silver-custos` | `bronze-custos` | `to_Silver/custos` | `tb_custos` | `tb_custos` |
+| `silver-motivos` | `bronze-motivos` | `to_Silver/motivos` | `tb_motivos` | `tb_motivos` |
+
+
 
 ---
 
