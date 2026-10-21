@@ -67,6 +67,17 @@ resources:
               expected_file: pesquisa_satisfacao.csv
               table_name: tb_pesquisas_de_satisfacao
             source: GIT
+        - task_key: silver-atendentes
+          depends_on:
+            - task_key: bronze-atendentes
+          notebook_task:
+            notebook_path: to_Silver/atendentes
+            base_parameters:
+              catalog: v_credit_case
+              bronze_table_name: tb_atendentes
+              silver_table_name: tb_atendentes
+            source: GIT
+          environment_key: Default
         - task_key: silver-canais
           depends_on:
             - task_key: bronze-canais
@@ -78,13 +89,24 @@ resources:
               silver_table_name: tb_canais
             source: GIT
           environment_key: Default
+        - task_key: silver-clientes
+          depends_on:
+            - task_key: bronze-clientes
+          notebook_task:
+            notebook_path: to_Silver/clientes
+            base_parameters:
+              catalog: v_credit_case
+              bronze_table_name: tb_clientes
+              silver_table_name: tb_clientes
+            source: GIT
+          environment_key: Default
         - task_key: silver-custos
           depends_on:
             - task_key: bronze-custos
           notebook_task:
             notebook_path: to_Silver/custos
             base_parameters:
-              catalog: v_credit
+              catalog: v_credit_case
               bronze_table_name: tb_custos
               silver_table_name: tb_custos
             source: GIT
@@ -100,35 +122,13 @@ resources:
               silver_table_name: tb_motivos
             source: GIT
           environment_key: Default
-        - task_key: silver-atendentes
-          depends_on:
-            - task_key: bronze-atendentes
-          notebook_task:
-            notebook_path: to_Silver/atendentes
-            base_parameters:
-              catalog: v_credit_case
-              bronze_table_name: tb_atendentes
-              silver_table_name: tb_atendentes
-            source: GIT
-          environment_key: Default
-        - task_key: silver-clientes
-          depends_on:
-            - task_key: bronze-clientes
-          notebook_task:
-            notebook_path: to_Silver/clientes
-            base_parameters:
-              catalog: v_credit_case
-              bronze_table_name: tb_clientes
-              silver_table_name: tb_clientes
-            source: GIT
-          environment_key: Default
         - task_key: silver-chamados
           depends_on:
-            - task_key: bronze-chamados
-            - task_key: silver-canais
-            - task_key: silver-motivos
-            - task_key: silver-atendentes
             - task_key: silver-clientes
+            - task_key: silver-atendentes
+            - task_key: silver-motivos
+            - task_key: silver-canais
+            - task_key: bronze-chamados
           notebook_task:
             notebook_path: to_Silver/chamados
             base_parameters:
@@ -147,6 +147,17 @@ resources:
               catalog: v_credit_case
               bronze_table_name: tb_pesquisas_de_satisfacao
               silver_table_name: tb_pesquisas_de_satisfacao
+            source: GIT
+          environment_key: Default
+        - task_key: gold-canais
+          depends_on:
+            - task_key: silver-canais
+          notebook_task:
+            notebook_path: to_Gold/dim_canal
+            base_parameters:
+              catalog: v_credit_case
+              silver_table_name: tb_canais
+              gold_table_name: dim_canal
             source: GIT
           environment_key: Default
       git_source:
