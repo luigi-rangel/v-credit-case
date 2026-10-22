@@ -2,7 +2,7 @@
 
 Pipeline de dados no **Databricks** para o caso de competição V-Credit. O projeto segue a **arquitetura medalhão** (Landing → Bronze → Silver → Gold), usando Unity Catalog, Delta Lake e Workflows (Jobs).
 
-> **Estado atual:** a camada Bronze (8 tabelas ingeridas a partir de CSVs) e a camada Silver (8 tabelas com os dados transformados) estão implementadas. A camada Gold tem apenas o setup de ambiente.
+> **Estado atual:** as camadas Bronze (8 tabelas ingeridas a partir de CSVs) e Silver (8 tabelas com os dados transformados) estão implementadas. A camada Gold também foi construída utilizando modelagem dimensional (Fato e Dimensões).
 
 ---
 
@@ -12,9 +12,10 @@ Pipeline de dados no **Databricks** para o caso de competição V-Credit. O proj
 - [Estrutura do repositório](#estrutura-do-repositório)
 - [Camada Landing](#camada-landing)
 - [Camada Bronze](#camada-bronze)
-- [Como funciona o notebook `utils`](#como-funciona-o-notebook-utils)
-- [Orquestração (job.yaml)](#orquestração-jobyaml)
 - [Camada Silver](#camada-silver)
+- [Camada Gold](#camada-gold)
+- [Como funcionam os notebooks `utils`](#como-funcionam-os-notebooks-utils)
+- [Orquestração (job.yaml)](#orquestração-jobyaml)
 - [Como executar](#como-executar)
 - [Convenções de Git](#convenções-de-git)
 
@@ -34,9 +35,9 @@ flowchart LR
 | Camada | Local no Unity Catalog | Conteúdo | Status |
 |---|---|---|---|
 | **Landing** | Volume `v_credit_case.bronze.landing` | Arquivos CSV exatamente como recebidos | Criada automaticamente (arquivos são enviados manualmente) |
-| **Bronze** | Schema `v_credit_case.bronze` | Cópia fiel dos CSVs em tabelas Delta, com coluna de auditoria | Implementada |
-| **Silver** | Schema `v_credit_case.silver` | Dados limpos, tipados e padronizados | Implementada |
-| **Gold** | A definir | Modelo analítico para Power BI e análise | Somente setup (`utils`) |
+| **Bronze** | Schema `v_credit_case.bronze` | Cópia fiel dos CSVs em tabelas Delta, com coluna de auditoria |
+| **Silver** | Schema `v_credit_case.silver` | Dados limpos, tipados e padronizados |
+| **Gold** | Schema `v_credit_case.gold` | Modelo analítico (Star Schema) pronto para BI |
 
 O nome do catálogo (`v_credit_case`) é parametrizável por widget, então o mesmo código pode rodar em outro ambiente.
 
@@ -60,8 +61,17 @@ v-credit-case/
 │   └── pesquisas_de_satisfacao.ipynb
 └── to_Silver/
     └── ...          # Mesmos 9 notebooks de to_Bronze/ (utils + 8 tabelas)
+└── to_Gold/
+    ├── utils.ipynb
+    ├── dim_atendentes.ipynb
+    ├── dim_canal.ipynb
+    ├── dim_clientes.ipynb
+    ├── dim_horario.ipynb
+    ├── dim_motivo.ipynb
+    └── fato_chamados.ipynb
+
 ```
-Cada tabela tem um notebook por camada, com o mesmo nome em `to_Bronze/` e `to_Silver/`. Já o `utils.ipynb` é específico de cada camada (ver [Como funciona o notebook `utils`](#como-funciona-o-notebook-utils))
+Cada tabela tem um notebook por camada. Os arquivos `.ipynb` são **notebooks do Databricks** (e não módulos Python importáveis). Eles são reutilizados com `%run`, não com `import`. (ver [Como funciona o notebook `utils`](#como-funciona-o-notebook-utils))
 
 Todos os arquivos `.ipynb` são **notebooks do Databricks** (e não módulos Python importáveis). Eles são reutilizados com `%run`, não com `import`.
 
@@ -72,34 +82,34 @@ Todos os arquivos `.ipynb` são **notebooks do Databricks** (e não módulos Pyt
 Os CSVs ficam no volume:
 
 ```
-/Volumes/{catalog}/bronze/landing
+/Volumes/{catalog}/bronze/landing/{pasta_ou_arquivo}
 ```
 
-O volume é criado pelo `utils`, mas **o upload dos arquivos é manual**. Os nomes esperados pelo job são:
+O volume e os diretórios de checkpoint são criados automaticamente pelo notebook `utils` da Bronze. Os arquivos esperados no upload são:
 
-| Arquivo | Tabela Bronze |
+| Arquivo / Origem | Tabela Bronze |
 |---|---|
-| `base_atendentes.csv` | `tb_atendentes` |
-| `canais.csv` | `tb_canais` |
-| `chamados.csv` | `tb_chamados` |
+| `base_atendentes` / `base_atendentes.csv` | `tb_atendentes` |
+| `canais` / `canais.csv` | `tb_canais` |
+| `chamados` / `chamados.csv` | `tb_chamados` |
 | `Chamados_Hora.CSV` | `tb_chamados_hora` |
-| `clientes.csv` | `tb_clientes` |
-| `custos.csv` | `tb_custos` |
-| `base_motivos.csv` | `tb_motivos` |
-| `pesquisa_satisfacao.csv` | `tb_pesquisas_de_satisfacao` |
+| `clientes` / `clientes.csv` | `tb_clientes` |
+| `custos` / `custos.csv` | `tb_custos` |
+| `base_motivos` / `base_motivos.csv` | `tb_motivos` |
+| `pesquisas_de_satisfacao` / `pesquisa_satisfacao.csv` | `tb_pesquisas_de_satisfacao` |
 
-> O nome do arquivo é sensível a maiúsculas e minúsculas (note `Chamados_Hora.CSV`).
 
 ---
 
 ## Camada Bronze
 
-A Bronze é uma ingestão **incremental e sem transformação de negócio**: lê em streaming apenas os CSVs novos do volume de landing, adiciona a coluna `ingestion_datetime` e grava em uma tabela Delta.
+A Bronze é uma ingestão **incremental e sem transformação de negócio**: lê em streaming apenas os CSVs novos do volume de landing, adiciona a coluna `ingestion_datetime` e grava em uma tabela Delta. Tem capacidade de alterar o `encoding` de acordo com requisição.
 
 - **Schema:** `{catalog}.bronze`
 - **Formato:** Delta
 - **Modo de escrita:** `writeStream` em modo `append`, com `trigger(availableNow=True)` e `checkpointLocation` por tabela
-- **Leitura do CSV:** Auto Loader (`readStream` com `cloudFiles`), CSV com `header=true` e inferência de tipos (`cloudFiles.inferColumnTypes`), restrita ao arquivo esperado por `pathGlobFilter`
+- **Leitura do CSV:** Auto Loader (`readStream` com `cloudFiles`), CSV com `header=true` e inferência de tipos (`cloudFiles.inferColumnTypes`).
+ - **Checkpointing:** Mantido em `/Volumes/{catalog}/bronze/checkpoints/{table_name}` para garantir tolerância a falhas e reprocessamento exato.
 - **Colunas de auditoria:** `
     - `ingestion_datetime` (timestamp da ingestão)
     - `source_file`:  caminho do arquivo de origem
@@ -109,19 +119,13 @@ A Bronze é uma ingestão **incremental e sem transformação de negócio**: lê
 
 Os CSVs chegam ao volume de landing em cargas manuais, e o job pode ser reexecutado a qualquer momento (retentativa de uma task, rerun manual ou nova carga na mesma pasta). Com uma leitura em lote seguida de `append`, cada reexecução gravaria de novo todos os arquivos já ingeridos, e a Bronze acumularia registros repetidos.
 
-### O que a deduplicação da Bronze garante (e o que não garante)
-
-| Situação | Tratamento |
-|---|---|
-| Mesmo arquivo processado novamente | Ignorado (checkpoint) |
-| Arquivo já processado e depois substituído com o mesmo nome | **Não é relido** (comportamento padrão do Auto Loader), então a correção precisa de um novo arquivo |
-| Mesmo conteúdo enviado com nomes diferentes | Ingerido duas vezes |
-| Linhas repetidas dentro de um arquivo | Mantidas (a Bronze é cópia fiel) |
-| Checkpoint apagado | O arquivo é reprocessado e gera duplicatas |
-
 ### Reingestão do zero
 
-Para reingerir um arquivo desde o início, é preciso apagar a tabela Bronze correspondente e o seu checkpoint (`/Volumes/{catalog}/bronze/checkpoints/{table_name}`). Se o esquema do arquivo mudou, apague também `/Volumes/{catalog}/bronze/checkpoints/schemas/{nome_do_arquivo_sem_extensao}`.
+Para forçar o reprocessamento completo de uma tabela na Bronze:
+1. Apague a tabela Delta no catálogo (`DROP TABLE {catalog}.bronze.{table_name}`).
+2. Apague a pasta de checkpoint correspondente em `/Volumes/{catalog}/bronze/checkpoints/{table_name}`.
+3. Se houver mudança de esquema, apague o esquema salvo em `/Volumes/{catalog}/bronze/checkpoints/schemas/{source}`.
+
 
 Cada notebook da Bronze (um por tabela) tem a mesma estrutura de três passos:
 
@@ -129,101 +133,68 @@ Cada notebook da Bronze (um por tabela) tem a mesma estrutura de três passos:
 2. Cria os widgets `expected_file` e `table_name` com valores padrão.
 3. Chama `load_df(expected_file)` e depois `save_df(df, table_name)`. O `load_df` devolve um DataFrame de streaming, e o `save_df` inicia o stream e aguarda o término.
 
-Exemplo (`to_Bronze/clientes.ipynb`):
-
-```python
-# MAGIC %run ./utils
-
-dbutils.widgets.text("expected_file", "clientes.csv")
-expected_file = dbutils.widgets.get("expected_file")
-
-dbutils.widgets.text("table_name", "tb_clientes")
-table_name = dbutils.widgets.get("table_name")
-
-df = load_df(expected_file)
-save_df(df, table_name)
-```
-
 ---
 
-## Como funciona o notebook `utils`
 
-Existe um `utils` em cada camada (`to_Bronze/utils.ipynb` e `to_Silver/utils.ipynb`). Ele é um **notebook**, executado com `%run ./utils` no início de cada notebook da camada. Como o `%run` roda no mesmo contexto do notebook chamador, o `utils` enxerga `dbutils`, `spark` e os widgets, e tudo o que ele define (variáveis e funções) fica disponível no notebook que o chamou.
+## Camada Silver
 
-### `to_Bronze/utils.ipynb`
+## Camada Silver
 
-O notebook tem três células.
+A Silver aplica limpeza, padronização, deduplicação e tipagem sobre as tabelas Bronze.
 
-**1. Preâmbulo de configuração**
+- **Schema:** `{catalog}.silver`
+- **Modo de Escrita:** `overwrite` (reconstruída integralmente a cada execução para consistência de regras).
+- **Deduplicação:** Realizada via janela `row_number()` particionada pela chave de negócio e ordenada por `ingestion_datetime DESC`.
+- **Qualidade de Dados:** O notebook `utils` fornece funções de Data Quality (`dq_check` e `dq_check_unique`) que validam regras de negócio registradas em logs sem parar o pipeline.
 
-```python
-dbutils.widgets.text("catalog", "v_credit_case")
-catalog = dbutils.widgets.get("catalog")
+### Resumo por tabela Silver
+- `tb_atendentes`: Padronização do nível de atendimento (1 e 2), tipagem de datas de admissão e desligamento.
+- `tb_canais`: Padronização de nomes de canais de atendimento.
+- `tb_chamados`: Consolidação dos dados estruturais dos chamados.
+- `tb_chamados_hora`: Ajuste de inconsistências em timestamps (viradas de dia, ajuste de anos) e cálculo de `tempo_espera_segundos` e `tempo_atendimento_segundos`.
+- `tb_clientes`: Tratamento de e-mails, validação de regiões brasileiras e limites de idade/vencimento de fatura.
+- `tb_custos`: Limpeza de símbolos monetários (`R$`) e conversão para decimal.
+- `tb_motivos`: Normalização de categorias e criticidade.
+- `tb_pesquisas_de_satisfacao`: Tratamento e consolidação de notas e avaliações.
 
-bronze_schema = f"{catalog}.bronze"
-landing_path = f"/Volumes/{catalog}/bronze/landing"
+---
+A camada Gold estrutura os dados no modelo dimensional **Star Schema** (Esquema Estrela), otimizado para consultas analíticas e ferramentas de BI (ex: Power BI).
 
-spark.sql(f"CREATE CATALOG IF NOT EXISTS {catalog}")
-spark.sql(f"CREATE SCHEMA IF NOT EXISTS {bronze_schema}")
-spark.sql(f"CREATE VOLUME IF NOT EXISTS {bronze_schema}.landing")
-```
+- **Schema:** `{catalog}.gold`
+- **Modo de Escrita:** Delta Lake (`overwrite` ou gerenciado por chave substituta/SK).
+- **Modelagem:**
+  - **Surrogate Keys (SK):** Identificadores numéricos gerados sequencialmente ou via hash para isolar o modelo dimensional das chaves de negócio das origens.
+  - **Dimensões e Fato:**
 
-- Cria o widget `catalog` com padrão `v_credit_case`. Em um job, o parâmetro recebido sobrescreve o padrão.
-- Define as variáveis `catalog`, `bronze_schema` e `landing_path`.
-- Cria o catálogo, o schema e o volume **se ainda não existirem** (idempotente), então o primeiro run já prepara o ambiente.
+| Tabela Gold | Tipo | Descrição / Conteúdo | Chave Primária (SK) |
+|---|---|---|---|
+| `dim_atendente` | Dimensão | Atendentes, nível de atuação e histórico de status | `atendente_sk` |
+| `dim_canal` | Dimensão | Canais de atendimento oferecidos | `canal_sk` |
+| `dim_cliente` | Dimensão | Cadastro de clientes, localização e dados demográficos | `cliente_sk` |
+| `dim_data` | Dimensão | Calendário completo com marcação de feriados e datas comemorativas | `data_sk` |
+| `dim_horario` | Dimensão | Granularidade por segundo do dia (24h), faixas de horário e indicador comercial | `horario_sk` |
+| `dim_motivo` | Dimensão | Motivos de chamados, categorias e criticidades | `motivo_sk` |
+| `fato_chamado` | Fato | Eventos de chamados integrando tempos, custos, nota de satisfação e SKs de dimensão | `id_chamado` |
+---
 
-**2. `load_df(file_name)`**
+## Como funcionam os notebooks `utils`
 
-Lê um CSV do volume de landing e devolve um DataFrame.
+Cada camada possui seu próprio notebook `utils.ipynb` com funções e configurações globais, reutilizadas via `%run ./utils`:
 
-- Lista a pasta `landing_path` e valida que ela existe e está acessível.
-- Valida que `file_name` está na pasta. Se não estiver, lança `FileNotFoundError` com a lista dos arquivos disponíveis.
-- Faz `spark.read.csv(..., header=True, inferSchema=True)`.
+### 1. `to_Bronze/utils.ipynb`
+- Garante a existência do catálogo, schema `bronze` e volumes (`landing` e `checkpoints`).
+- **`load_df(source, encoding="UTF-8")`**: Lê arquivos via streaming (`cloudFiles` / Auto Loader) anexando metadados do arquivo.
+- **`save_df(df, table_name)`**: Executa o `writeStream` Delta em modo `append` com `availableNow=True`.
 
-Qualquer falha interrompe a execução, o que faz a task do job falhar de forma explícita.
+### 2. `to_Silver/utils.ipynb`
+- Cria o schema `silver`.
+- **`save_df(df, table_name)`**: Grava o DataFrame em modo `overwrite` com `overwriteSchema=true`.
+- **`dq_check(...)` & `dq_check_unique(...)`**: Funções para validação de integridade e qualidade de dados.
 
-**3. `save_df(df, table_name)`**
-
-Grava o DataFrame na Bronze.
-
-- Adiciona `ingestion_datetime = current_timestamp()`.
-- Escreve em Delta no modo `append` em `{bronze_schema}.{table_name}`, criando a tabela se ela não existir.
-
-### `to_Silver/utils.ipynb`
-
-O notebook tem cinco células. Assim como na Bronze, é executado com `%run ./utils` no início de cada notebook da camada, e as variáveis e funções definidas nele ficam disponíveis no notebook chamador.
-
-**1. Preâmbulo de configuração**
-
-Funciona de forma semelhante ao preâmbulo da Bronze: cria o widget `catalog`, define as variáveis de schema (`bronze_schema` e `silver_schema`) e cria o catálogo e os dois schemas **se ainda não existirem**. Também importa `pyspark.sql.functions` como `F`, necessário para as funções do `utils`. Imports adicionais (como `Window`) ficam em cada notebook.
-
-**2. `save_df(df, table_name)`**
-
-Grava o DataFrame na Silver.
-
-- Escreve em Delta no modo `overwrite` em `{silver_schema}.{table_name}`, com `overwriteSchema=true`.
-- A tabela é **reconstruída por completo a cada execução**, a partir do que está na Bronze. Esse é o contraste com a Bronze, que usa `append`.
-- Com `overwriteSchema`, mudanças de colunas e tipos no tratamento são refletidas na tabela sem etapa manual.
-
-**3. `dq_check(table_name, check_name, df, condition)`**
-
-Checagem de qualidade baseada em uma condição esperada.
-
-- Recebe a tabela e o nome da checagem (usados na mensagem) e uma condição do Spark que **toda linha deve satisfazer**, por exemplo `F.col("valor") > 0`.
-- Conta o total de linhas e quantas violam a condição.
-- Imprime no log uma linha no formato `[PASS|FAIL] tabela | checagem | X/Y linhas falharam`. O status é `PASS` quando nenhuma linha falha.
-
-**4. `dq_check_unique(table_name, check_name, df, key_cols)`**
-
-Checagem de qualidade específica para unicidade de chave.
-
-- Recebe a lista de colunas que formam a chave (`key_cols`).
-- Agrupa por essas colunas e conta quantas chaves aparecem mais de uma vez.
-- Imprime no log `[PASS|FAIL] tabela | checagem | X chaves duplicadas de Y linhas`. O status é `PASS` quando não há chaves duplicadas.
-
-**5. `cast_id_to_string(df, prefix="^id(_|$)")`**
-
-Converte para `string` as colunas de identificador do DataFrame, padronizando o tipo dos ids entre as tabelas (por exemplo, para que as chaves de junção tenham o mesmo tipo dos dois lados). As colunas são selecionadas pelo nome, e as demais permanecem inalteradas.
+### 3. `to_Gold/utils.ipynb`
+- Cria o schema `gold`.
+- **`add_sequential_key(...)`**: Gera Surrogate Keys (SKs) sequenciais para tabelas de dimensão.
+- Helper functions para junções e tratamento de registros nulos ("Não Informado").
 
 ### Parâmetros dos notebooks
 
@@ -271,121 +242,16 @@ Configurações adicionais: fila habilitada (`queue.enabled: true`) e `performan
 | `silver-custos` | `bronze-custos` | `to_Silver/custos` | `tb_custos` | `tb_custos` |
 | `silver-motivos` | `bronze-motivos` | `to_Silver/motivos` | `tb_motivos` | `tb_motivos` |
 
-
-
 ---
-
-## Camada Silver
-
-A Silver é a camada de **tratamento dos dados**: lê cada tabela da Bronze, corrige tipos, trata nulos e textos, resolve inconsistências, remove duplicatas, aplica regras de negócio pontuais e grava o resultado em uma tabela Delta, reconstruída a cada execução.
-
-- **Schema:** `{catalog}.silver`
-- **Origem:** tabelas Delta de `{catalog}.bronze` 
-- **Formato:** Delta
-- **Modo de escrita:** `overwrite` 
-- **Regras de negócio:**
-  - `atendentes`: categorização dos atendentes por nível de atendimento
-  - `chamados_hora`: cálculo do tempo de espera e do tempo de atendimento
-
-Cada notebook da camada Silver segue, em geral, as mesmas etapas:
-
-1. `%run ./utils` para configurar o ambiente e carregar as funções.
-2. Cria o widget `bronze_table_name` (padrão `tb_*`) e lê a tabela correspondente de `{catalog}.bronze`, selecionando as colunas de interesse e `ingestion_datetime`.
-3. **Deduplicação:** mantém apenas o registro mais recente de cada chave primária, usando `row_number()` sobre uma janela particionada pela chave e ordenada por `ingestion_datetime` decrescente. Depois do filtro, `rn` e `ingestion_datetime` são descartadas, então as tabelas Silver não têm coluna de auditoria.
-4. **Transformações específicas** de cada tabela: conversão de tipos, limpeza de texto, correção de inconsistências e regras de negócio (ver tabela abaixo).
-5. Cria o widget `silver_table_name` (padrão `tb_*`) e chama `save_df(df, silver_table_name)`.
-
-### Resumo por tabela
-
-| Tabela Silver | Chave de deduplicação | Regra de negócio | Checagens |
-|---|---|---|---|
-| `tb_atendentes` | `id_atendente` (a confirmar) | Padronização do nível de atendimento (`1` ou `2`) | Sim (3) |
-| `tb_canais` | `id_canal` | Nenhuma | Não |
-| `tb_chamados` | a preencher | a preencher | a preencher |
-| `tb_chamados_hora` | `id_chamado` (a confirmar) | Tempos de espera e de atendimento, em segundos | Não |
-| `tb_clientes` | `id_cliente` | Nenhuma | Sim (2) |
-| `tb_custos` | `id_custo` ou (`id_chamado`, `id_custo`) (a confirmar) | Nenhuma | Sim (2) |
-| `tb_motivos` | `id_motivo` | Nenhuma | Não |
-| `tb_pesquisas_de_satisfacao` | a preencher | a preencher | a preencher |
-
-As checagens (`dq_check` e `dq_check_unique`) apenas registram `PASS` ou `FAIL` no log e não interrompem a execução do notebook. Cada notebook posiciona as checagens conforme o que quer medir: antes do tratamento (para medir o problema na origem) ou depois (para validar o resultado).
-
-### Tratamentos por tabela
-
-#### `tb_atendentes`
-- **Chave:** `id_atendente` (a confirmar)
-- **Tipos:** `id_atendente` → `string`
-- **Limpeza:** `nivel_atendimento` padronizado: "1" e "Nível 1" → `1`; "2", "Nível 2" e "N2" → `2`; demais valores permanecem como estão
-- **Regra de negócio:** padronização do nível de atendimento em dois níveis (`1` e `2`)
-- **Checagens (`dq_check`):**
-  - níveis de atendimento devem estar padronizados
-  - data de desligamento deve ser posterior à data de admissão
-  - `status_atendente = "inativo"` só é permitido após o desligamento (conferir o valor exato no código)
-
-#### `tb_canais`
-- **Chave:** `id_canal`
-- **Tipos:** `id_canal` → `string`
-- **Limpeza:** nenhuma
-- **Checagens:** nenhuma
-
-#### `tb_chamados`
-- a preencher
-
-#### `tb_chamados_hora`
-- **Chave:** `id_chamado` (a confirmar)
-- **Tipos:** `id_chamado` e `id_cliente` → `string`; colunas de hora → `timestamp`
-- **Limpeza:**
-  - colunas renomeadas para minúsculas (`ID_Chamado` → `id_chamado`, `ID_Cliente` → `id_cliente`)
-  - correção do ano de `hora_abertura_chamado` com base na hora de início (ou de finalização, se o início for nulo), quando dia e mês coincidem
-  - soma de 1 dia à finalização quando ela é anterior ao início (virada de meia-noite)
-- **Regra de negócio:** `tempo_espera_segundos` (início − abertura) e `tempo_atendimento_segundos` (finalização − início)
-- **Checagens:** nenhuma
-
-#### `tb_clientes`
-- **Chave:** `id_cliente`
-- **Tipos:** `id_cliente` → `string`; `idade` → `int`; `data_cadastro` → `date` (`dd/MM/yyyy` ou `yyyy-MM-dd`); `dia_vencimento_fatura` → `int`
-- **Limpeza:**
-  - `nome`: `trim` + `upper`
-  - `email`: sem espaços, em maiúsculas, `@` recuperado quando o domínio é conhecido, `NULL` se inválido (flag `email_corrigido`)
-  - `regiao`: validada contra as 5 regiões do Brasil (`NULL` se inválida)
-  - `idade`: válida entre 18 e 110 (`NULL` fora disso)
-  - `dia_vencimento_fatura`: válido entre 1 e 28 (`NULL` fora disso)
-- **Checagens (`dq_check`, antes do tratamento):** `idade` nula na origem; `idade` fora do intervalo de 18 a 110
-
-#### `tb_custos`
-- **Chave:** `id_custo` ou (`id_chamado`, `id_custo`) (a confirmar)
-- **Tipos:** `id_custo` e `id_chamado` → `string`; `custo` → `decimal(18,2)`
-- **Limpeza:** `custo` sem texto de moeda (`R$`, `real`, `reais`) e com vírgula decimal trocada por ponto; valores negativos preservados
-- **Checagens:** `dq_check_unique` da chave composta (`id_chamado`, `id_custo`); `dq_check` de preservação dos custos negativos
-
-#### `tb_motivos`
-- **Chave:** `id_motivo`
-- **Tipos:** `id_motivo` → `string`
-- **Limpeza:**
-  - `categoria` e `criticidade`: `trim` + `upper`
-  - `categoria` reclassificada para `CARTAO` ("Contratação de cartão adicional") e `CADASTRAL` ("Transferência de agência", "Cancelamento de conta")
-- **Checagens:** nenhuma
-
-#### `tb_pesquisas_de_satisfacao`
-- a preencher
----
-
 ## Como executar
 
-1. **Clonar o repositório** em um Git folder do Databricks (Repos).
-2. **Rodar `to_Bronze/utils` uma vez** para criar o catálogo, o schema e o volume. O `to_Silver/utils` cria o schema Silver e roda automaticamente junto com cada notebook da Silver.
-3. **Enviar os CSVs** para `/Volumes/v_credit_case/bronze/landing`, com os nomes da tabela acima.
-4. **Executar:**
-   - Um notebook isolado, respeitando a ordem das camadas: primeiro o da Bronze (por exemplo, `to_Bronze/clientes`) e depois o da Silver (por exemplo, `to_Silver/clientes`), ou
-   - O job **V-Credit-Case** completo, que roda as 8 ingestões em paralelo e cada task da silver após a ingestão de sua tabela corresponente.
-5. **Conferir as tabelas:**
-   - Em `v_credit_case.bronze`, com as colunas `source_file` e `ingestion_datetime`.
-   - Em `v_credit_case.silver`, onde os dados já estão deduplicados e tratados.
-
-
-Para usar outro catálogo, passe o parâmetro `catalog` no job ou altere o widget no notebook.
-
----
+1. **Clone do repositório:** Importe o repositório no Databricks Repos / Git Folders.
+2. **Setup do ambiente:** Execute o notebook `to_Bronze/utils` uma única vez para provisionar o Catálogo, Schemas e Volumes no Unity Catalog.
+3. **Upload de dados:** Envie os CSVs brutos para o volume `/Volumes/v_credit_case/bronze/landing/`.
+4. **Execução:**
+   - **Manual:** Execute individualmente os notebooks respeitando a ordem das camadas (Bronze → Silver → Gold).
+   - **Automática (Workflow):** Dispare o job configurado em `job.yaml`.
+5. **Validação:** Verifique as tabelas geradas no Unity Catalog dentro das camadas `v_credit_case.bronze`, `v_credit_case.silver` e `v_credit_case.gold`.
 
 ## Convenções de Git
 
