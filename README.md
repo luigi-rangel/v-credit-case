@@ -12,6 +12,7 @@ Pipeline de dados no **Databricks** para o caso de competição V-Credit. O proj
 - [Estrutura do repositório](#estrutura-do-repositório)
 - [Camada Landing](#camada-landing)
 - [Camada Bronze](#camada-bronze)
+- [Camada Silver](#camada-silver)
 - [Como funciona o notebook `utils`](#como-funciona-o-notebook-utils)
 - [Orquestração (job.yaml)](#orquestração-jobyaml)
 - [Camada Silver](#camada-silver)
