@@ -8,7 +8,7 @@ resources:
             notebook_path: to_Bronze/atendentes
             base_parameters:
               catalog: v_credit_case
-              expected_file: base_atendentes.csv
+              source_folder: atendentes
               table_name: tb_atendentes
             source: GIT
         - task_key: bronze-canais
@@ -16,7 +16,7 @@ resources:
             notebook_path: to_Bronze/canais
             base_parameters:
               catalog: v_credit_case
-              expected_file: canais.csv
+              source_folder: canais
               table_name: tb_canais
             source: GIT
         - task_key: bronze-chamados
@@ -24,7 +24,7 @@ resources:
             notebook_path: to_Bronze/chamados
             base_parameters:
               catalog: v_credit_case
-              expected_file: chamados.csv
+              source_folder: chamados
               table_name: tb_chamados
             source: GIT
         - task_key: bronze-chamados-hora
@@ -32,7 +32,7 @@ resources:
             notebook_path: to_Bronze/chamados_hora
             base_parameters:
               catalog: v_credit_case
-              expected_file: Chamados_Hora.CSV
+              source_folder: chamados_hora
               table_name: tb_chamados_hora
             source: GIT
         - task_key: bronze-clientes
@@ -40,7 +40,7 @@ resources:
             notebook_path: to_Bronze/clientes
             base_parameters:
               catalog: v_credit_case
-              expected_file: clientes.csv
+              source_folder: clientes
               table_name: tb_clientes
             source: GIT
         - task_key: bronze-custos
@@ -48,7 +48,7 @@ resources:
             notebook_path: to_Bronze/custos
             base_parameters:
               catalog: v_credit_case
-              expected_file: custos.csv
+              source_folder: custos
               table_name: tb_custos
             source: GIT
         - task_key: bronze-motivos
@@ -56,7 +56,7 @@ resources:
             notebook_path: to_Bronze/motivos
             base_parameters:
               catalog: v_credit_case
-              expected_file: base_motivos.csv
+              source_folder: motivos
               table_name: tb_motivos
             source: GIT
         - task_key: bronze-pesquisas-de-satisfacao
@@ -64,7 +64,7 @@ resources:
             notebook_path: to_Bronze/pesquisas_de_satisfacao
             base_parameters:
               catalog: v_credit_case
-              expected_file: pesquisa_satisfacao.csv
+              source_folder: pesquisas_de_satisfacao
               table_name: tb_pesquisas_de_satisfacao
             source: GIT
         - task_key: silver-canais
@@ -84,7 +84,7 @@ resources:
           notebook_task:
             notebook_path: to_Silver/custos
             base_parameters:
-              catalog: v_credit
+              catalog: v_credit_case
               bronze_table_name: tb_custos
               silver_table_name: tb_custos
             source: GIT
