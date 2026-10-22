@@ -171,6 +171,33 @@ resources:
               gold_table_name: dim_data
             source: GIT
           environment_key: gold_dim_data_environment
+        - task_key: silver-chamados
+          depends_on:
+            - task_key: bronze-chamados
+            - task_key: silver-canais
+            - task_key: silver-motivos
+            - task_key: silver-atendentes
+            - task_key: silver-clientes
+          notebook_task:
+            notebook_path: to_Silver/chamados
+            base_parameters:
+              catalog: v_credit_case
+              bronze_table_name: tb_chamados
+              silver_table_name: tb_chamados
+            source: GIT
+          environment_key: Default
+        - task_key: silver-pesquisas-de-satisfacao
+          depends_on:
+            - task_key: bronze-pesquisas-de-satisfacao
+            - task_key: silver-chamados
+          notebook_task:
+            notebook_path: to_Silver/pesquisas_de_satisfacao
+            base_parameters:
+              catalog: v_credit_case
+              bronze_table_name: tb_pesquisas_de_satisfacao
+              silver_table_name: tb_pesquisas_de_satisfacao
+            source: GIT
+          environment_key: Default
       git_source:
         git_url: https://github.com/luigi-rangel/v-credit-case
         git_provider: gitHub
