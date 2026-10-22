@@ -100,7 +100,7 @@ A Bronze é uma ingestão **incremental e sem transformação de negócio**: lê
 - **Schema:** `{catalog}.bronze`
 - **Formato:** Delta
 - **Modo de escrita:** `writeStream` em modo `append`, com `trigger(availableNow=True)` e `checkpointLocation` por tabela
-- **Leitura do CSV:** Auto Loader (`readStream` com `cloudFiles`), CSV com `header=true` e inferência de tipos (`cloudFiles.inferColumnTypes`), restrita ao arquivo esperado por `pathGlobFilter`
+- **Leitura do CSV:** Auto Loader (`readStream` com `cloudFiles`), CSV com `header=true` e inferência de tipos (`cloudFiles.inferColumnTypes`).
 - **Colunas de auditoria:** `
     - `ingestion_datetime` (timestamp da ingestão)
     - `source_file`:  caminho do arquivo de origem
