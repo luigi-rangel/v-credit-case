@@ -174,7 +174,7 @@ A camada Gold estrutura os dados no modelo dimensional **Star Schema** (Esquema 
 | `dim_data` | Dimensão | Calendário completo com marcação de feriados e datas comemorativas | `data_sk` |
 | `dim_horario` | Dimensão | Granularidade por segundo do dia (24h), faixas de horário e indicador comercial | `horario_sk` |
 | `dim_motivo` | Dimensão | Motivos de chamados, categorias e criticidades | `motivo_sk` |
-| `fato_chamados` | Fato | Eventos de chamados integrando tempos, custos, nota de satisfação e SKs de dimensão | `id_chamado` |
+| `fato_chamado` | Fato | Eventos de chamados integrando tempos, custos, nota de satisfação e SKs de dimensão | `id_chamado` |
 ---
 
 ## Como funcionam os notebooks `utils`
