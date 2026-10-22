@@ -204,7 +204,7 @@ resources:
           environment_key: Default
         - task_key: gold-hora
           notebook_task:
-            notebook_path: to_Gold/dim_hora
+            notebook_path: to_Gold/dim_horario
             base_parameters:
               catalog: v_credit_case
               gold_table_name: dim_horario
