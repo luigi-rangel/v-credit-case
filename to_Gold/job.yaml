@@ -171,18 +171,17 @@ resources:
               catalog: v_credit_case
             source: GIT
           environment_key: Default
-        - task_key: gold-dim-chamados
+        - task_key: gold-fato-chamados
           depends_on:
             - task_key: silver-chamados
             - task_key: silver-chamados-hora
             - task_key: silver-custos
             - task_key: silver-pesquisas-de-satisfacao
-            - task_key: gold-mock
           notebook_task:
-            notebook_path: to_Gold/dim_chamados
+            notebook_path: to_Gold/fato_chamados
             base_parameters:
               catalog: v_credit_case
-              gold_table_name: dim_chamados
+              gold_table_name: fato_chamados
             source: GIT
           environment_key: Default
       git_source:
