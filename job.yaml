@@ -34,7 +34,6 @@ resources:
               catalog: v_credit_case
               source_folder: chamados_hora
               table_name: tb_chamados_hora
-              encoding: ISO-8859-1
             source: GIT
         - task_key: bronze-clientes
           notebook_task:
@@ -68,17 +67,6 @@ resources:
               source_folder: pesquisas_de_satisfacao
               table_name: tb_pesquisas_de_satisfacao
             source: GIT
-        - task_key: silver-atendentes
-          depends_on:
-            - task_key: bronze-atendentes
-          notebook_task:
-            notebook_path: to_Silver/atendentes
-            base_parameters:
-              catalog: v_credit_case
-              bronze_table_name: tb_atendentes
-              silver_table_name: tb_atendentes
-            source: GIT
-          environment_key: Default
         - task_key: silver-canais
           depends_on:
             - task_key: bronze-canais
@@ -88,54 +76,6 @@ resources:
               catalog: v_credit_case
               bronze_table_name: tb_canais
               silver_table_name: tb_canais
-            source: GIT
-          environment_key: Default
-        - task_key: silver-chamados-hora
-          depends_on:
-            - task_key: bronze-chamados-hora
-          notebook_task:
-            notebook_path: to_Silver/chamados_hora
-            base_parameters:
-              catalog: v_credit_case
-              bronze_table_name: tb_chamados_hora
-              silver_table_name: tb_chamados_hora
-            source: GIT
-          environment_key: Default
-        - task_key: gold_dim_data
-          depends_on:
-            - task_key: silver-chamados-hora
-          notebook_task:
-            notebook_path: to_Gold/dim_data
-            base_parameters:
-              catalog: v_credit_case
-              silver_table_name: tb_chamados_hora
-              gold_table_name: dim_data
-            source: GIT
-          environment_key: gold_dim_data_environment
-        - task_key: silver-clientes
-          depends_on:
-            - task_key: bronze-clientes
-          notebook_task:
-            notebook_path: to_Silver/clientes
-            base_parameters:
-              catalog: v_credit_case
-              bronze_table_name: tb_clientes
-              silver_table_name: tb_clientes
-            source: GIT
-          environment_key: Default
-        - task_key: silver-chamados
-          depends_on:
-            - task_key: silver-clientes
-            - task_key: silver-atendentes
-            - task_key: silver-motivos
-            - task_key: silver-canais
-            - task_key: bronze-chamados
-          notebook_task:
-            notebook_path: to_Silver/chamados
-            base_parameters:
-              catalog: v_credit_case
-              bronze_table_name: tb_chamados
-              silver_table_name: tb_chamados
             source: GIT
           environment_key: Default
         - task_key: silver-custos
@@ -160,6 +100,43 @@ resources:
               silver_table_name: tb_motivos
             source: GIT
           environment_key: Default
+        - task_key: silver-atendentes
+          depends_on:
+            - task_key: bronze-atendentes
+          notebook_task:
+            notebook_path: to_Silver/atendentes
+            base_parameters:
+              catalog: v_credit_case
+              bronze_table_name: tb_atendentes
+              silver_table_name: tb_atendentes
+            source: GIT
+          environment_key: Default
+        - task_key: silver-clientes
+          depends_on:
+            - task_key: bronze-clientes
+          notebook_task:
+            notebook_path: to_Silver/clientes
+            base_parameters:
+              catalog: v_credit_case
+              bronze_table_name: tb_clientes
+              silver_table_name: tb_clientes
+            source: GIT
+          environment_key: Default
+        - task_key: silver-chamados
+          depends_on:
+            - task_key: bronze-chamados
+            - task_key: silver-canais
+            - task_key: silver-motivos
+            - task_key: silver-atendentes
+            - task_key: silver-clientes
+          notebook_task:
+            notebook_path: to_Silver/chamados
+            base_parameters:
+              catalog: v_credit_case
+              bronze_table_name: tb_chamados
+              silver_table_name: tb_chamados
+            source: GIT
+          environment_key: Default
         - task_key: silver-pesquisas-de-satisfacao
           depends_on:
             - task_key: bronze-pesquisas-de-satisfacao
@@ -172,17 +149,29 @@ resources:
               silver_table_name: tb_pesquisas_de_satisfacao
             source: GIT
           environment_key: Default
-        - task_key: gold-atendentes
+        - task_key: silver-chamados-hora
           depends_on:
-            - task_key: silver-atendentes
+            - task_key: bronze-chamados-hora
           notebook_task:
-            notebook_path: to_Gold/dim_atendentes
+            notebook_path: to_Silver/chamados_hora
             base_parameters:
               catalog: v_credit_case
-              silver_table_name: tb_atendentes
-              gold_table_name: dim_atendente
+              bronze_table_name: tb_chamados_hora
+              silver_table_name: tb_chamados_hora
             source: GIT
           environment_key: Default
+
+        - task_key: gold_dim_data
+          depends_on:
+            - task_key: silver-chamados-hora
+          notebook_task:
+            notebook_path: to_Gold/dim_data
+            base_parameters:
+              catalog: v_credit_case
+              silver_table_name: tb_chamados_hora
+              gold_table_name: dim_data
+            source: GIT
+          environment_key: gold_dim_data_environment
         - task_key: gold-canais
           depends_on:
             - task_key: silver-canais
@@ -209,6 +198,30 @@ resources:
             base_parameters:
               catalog: v_credit_case
               gold_table_name: dim_horario
+            source: GIT
+          environment_key: Default
+        - task_key: gold-atendentes
+          depends_on:
+            - task_key: silver-atendentes
+          notebook_task:
+            notebook_path: to_Gold/dim_atendentes
+            base_parameters:
+              catalog: v_credit_case
+              silver_table_name: tb_atendentes
+              gold_table_name: dim_atendente
+            source: GIT
+          environment_key: Default
+        - task_key: gold-fato-chamados
+          depends_on:
+            - task_key: silver-chamados
+            - task_key: silver-chamados-hora
+            - task_key: silver-custos
+            - task_key: silver-pesquisas-de-satisfacao
+          notebook_task:
+            notebook_path: to_Gold/fato_chamados
+            base_parameters:
+              catalog: v_credit_case
+              gold_table_name: fato_chamados
             source: GIT
           environment_key: Default
         - task_key: gold-motivo
