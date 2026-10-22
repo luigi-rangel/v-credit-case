@@ -174,9 +174,9 @@ resources:
           environment_key: gold_dim_data_environment
         - task_key: gold-canais
           depends_on:
-            - task_key: bronze-chamados-hora
+            - task_key: silver-canais
           notebook_task:
-            notebook_path: to_Silver/chamados_hora
+            notebook_path: to_Gold/dim_canal
             base_parameters:
               catalog: v_credit_case
               silver_table_name: tb_canais
@@ -197,34 +197,7 @@ resources:
             notebook_path: to_Gold/dim_horario
             base_parameters:
               catalog: v_credit_case
-            source: GIT
-          environment_key: Default
-        - task_key: gold-fato-chamados
-          depends_on:
-            - task_key: silver-chamados
-            - task_key: silver-chamados-hora
-            - task_key: silver-custos
-            - task_key: gold-dim-cliente
-            - task_key: gold-dim-atendente
-            - task_key: gold-dim-canal
-            - task_key: gold-dim-motivo
-            - task_key: gold-dim-data
-            - task_key: gold-dim-horario
-          notebook_task:
-            notebook_path: to_Gold/fato_chamados
-            base_parameters:
-              catalog: v_credit_case
-              gold_table_name: fato_chamados
-              silver_chamados_table_name: tb_chamados
-              silver_horarios_table_name: tb_chamados_hora
-              silver_custos_table_name: tb_custos
-              silver_notas_table_name: tb_pesquisas_de_satisfacao
-              gold_cliente_table_name: dim_cliente
-              gold_atendente_table_name: dim_atendente
-              gold_canal_table_name: dim_canal
-              gold_motivo_table_name: dim_motivo
-              gold_data_table_name: dim_data
-              gold_horario_table_name: dim_horario
+              gold_table_name: dim_horario
             source: GIT
           environment_key: Default
         - task_key: gold-atendentes
@@ -271,5 +244,10 @@ resources:
       environments:
         - environment_key: Default
           spec:
+            environment_version: "6"
+        - environment_key: gold_dim_data_environment
+          spec:
+            dependencies:
+              - holidays == 0.106
             environment_version: "6"
       performance_target: PERFORMANCE_OPTIMIZED
