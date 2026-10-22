@@ -180,6 +180,8 @@ resources:
               catalog: v_credit_case
               silver_table_name: tb_canais
               gold_table_name: dim_canal
+            source: GIT
+          environment_key: Default
         - task_key: gold-cliente
           depends_on:
             - task_key: silver-clientes
@@ -192,6 +194,8 @@ resources:
             source: GIT
           environment_key: Default
         - task_key: gold-hora
+          depends_on:
+            - task_key: silver-chamados-hora
           notebook_task:
             notebook_path: to_Gold/dim_horario
             base_parameters:
@@ -239,7 +243,6 @@ resources:
               catalog: v_credit_case
               gold_table_name: fato_chamado
               silver_chamados_table_name: tb_chamados
-              silver_horarios_table_name: tb_chamados_hora
               silver_custos_table_name: tb_custos
               silver_notas_table_name: tb_pesquisas_de_satisfacao
               gold_cliente_table_name: dim_cliente
