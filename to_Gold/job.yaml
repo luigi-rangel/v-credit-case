@@ -1,0 +1,198 @@
+resources:
+  jobs:
+    V_Credit_Case:
+      name: V-Credit-Case
+      tasks:
+        - task_key: bronze-atendentes
+          notebook_task:
+            notebook_path: to_Bronze/atendentes
+            base_parameters:
+              catalog: v_credit_case
+              expected_file: base_atendentes.csv
+              table_name: tb_atendentes
+            source: GIT
+        - task_key: bronze-canais
+          notebook_task:
+            notebook_path: to_Bronze/canais
+            base_parameters:
+              catalog: v_credit_case
+              expected_file: canais.csv
+              table_name: tb_canais
+            source: GIT
+        - task_key: bronze-chamados
+          notebook_task:
+            notebook_path: to_Bronze/chamados
+            base_parameters:
+              catalog: v_credit_case
+              expected_file: chamados.csv
+              table_name: tb_chamados
+            source: GIT
+        - task_key: bronze-chamados-hora
+          notebook_task:
+            notebook_path: to_Bronze/chamados_hora
+            base_parameters:
+              catalog: v_credit_case
+              expected_file: Chamados_Hora.CSV
+              table_name: tb_chamados_hora
+            source: GIT
+        - task_key: bronze-clientes
+          notebook_task:
+            notebook_path: to_Bronze/clientes
+            base_parameters:
+              catalog: v_credit_case
+              expected_file: clientes.csv
+              table_name: tb_clientes
+            source: GIT
+        - task_key: bronze-custos
+          notebook_task:
+            notebook_path: to_Bronze/custos
+            base_parameters:
+              catalog: v_credit_case
+              expected_file: custos.csv
+              table_name: tb_custos
+            source: GIT
+        - task_key: bronze-motivos
+          notebook_task:
+            notebook_path: to_Bronze/motivos
+            base_parameters:
+              catalog: v_credit_case
+              expected_file: base_motivos.csv
+              table_name: tb_motivos
+            source: GIT
+        - task_key: bronze-pesquisas-de-satisfacao
+          notebook_task:
+            notebook_path: to_Bronze/pesquisas_de_satisfacao
+            base_parameters:
+              catalog: v_credit_case
+              expected_file: pesquisa_satisfacao.csv
+              table_name: tb_pesquisas_de_satisfacao
+            source: GIT
+        - task_key: silver-canais
+          depends_on:
+            - task_key: bronze-canais
+          notebook_task:
+            notebook_path: to_Silver/canais
+            base_parameters:
+              catalog: v_credit_case
+              bronze_table_name: tb_canais
+              silver_table_name: tb_canais
+            source: GIT
+          environment_key: Default
+        - task_key: silver-custos
+          depends_on:
+            - task_key: bronze-custos
+          notebook_task:
+            notebook_path: to_Silver/custos
+            base_parameters:
+              catalog: v_credit
+              bronze_table_name: tb_custos
+              silver_table_name: tb_custos
+            source: GIT
+          environment_key: Default
+        - task_key: silver-motivos
+          depends_on:
+            - task_key: bronze-motivos
+          notebook_task:
+            notebook_path: to_Silver/motivos
+            base_parameters:
+              catalog: v_credit_case
+              bronze_table_name: tb_motivos
+              silver_table_name: tb_motivos
+            source: GIT
+          environment_key: Default
+        - task_key: silver-atendentes
+          depends_on:
+            - task_key: bronze-atendentes
+          notebook_task:
+            notebook_path: to_Silver/atendentes
+            base_parameters:
+              catalog: v_credit_case
+              bronze_table_name: tb_atendentes
+              silver_table_name: tb_atendentes
+            source: GIT
+          environment_key: Default
+        - task_key: silver-clientes
+          depends_on:
+            - task_key: bronze-clientes
+          notebook_task:
+            notebook_path: to_Silver/clientes
+            base_parameters:
+              catalog: v_credit_case
+              bronze_table_name: tb_clientes
+              silver_table_name: tb_clientes
+            source: GIT
+          environment_key: Default
+        - task_key: silver-chamados
+          depends_on:
+            - task_key: bronze-chamados
+            - task_key: silver-canais
+            - task_key: silver-motivos
+            - task_key: silver-atendentes
+            - task_key: silver-clientes
+          notebook_task:
+            notebook_path: to_Silver/chamados
+            base_parameters:
+              catalog: v_credit_case
+              bronze_table_name: tb_chamados
+              silver_table_name: tb_chamados
+            source: GIT
+          environment_key: Default
+        - task_key: silver-pesquisas-de-satisfacao
+          depends_on:
+            - task_key: bronze-pesquisas-de-satisfacao
+            - task_key: silver-chamados
+          notebook_task:
+            notebook_path: to_Silver/pesquisas_de_satisfacao
+            base_parameters:
+              catalog: v_credit_case
+              bronze_table_name: tb_pesquisas_de_satisfacao
+              silver_table_name: tb_pesquisas_de_satisfacao
+            source: GIT
+          environment_key: Default
+        - task_key: silver-chamados-hora
+          depends_on:
+            - task_key: bronze-chamados-hora
+          notebook_task:
+            notebook_path: to_Silver/chamados_hora
+            base_parameters:
+              catalog: v_credit_case
+              bronze_table_name: tb_chamados_hora
+              silver_table_name: tb_chamados_hora
+            source: GIT
+          environment_key: Default
+        - task_key: gold-mock
+          depends_on:
+            - task_key: silver-clientes
+            - task_key: silver-chamados
+            - task_key: silver-chamados-hora
+          notebook_task:
+            notebook_path: to_Gold/mock
+            base_parameters:
+              catalog: v_credit_case
+            source: GIT
+          environment_key: Default
+        - task_key: gold-dim-chamados
+          depends_on:
+            - task_key: silver-chamados
+            - task_key: silver-chamados-hora
+            - task_key: silver-custos
+            - task_key: silver-pesquisas-de-satisfacao
+            - task_key: gold-mock
+          notebook_task:
+            notebook_path: to_Gold/dim_chamados
+            base_parameters:
+              catalog: v_credit_case
+              gold_table_name: dim_chamados
+            source: GIT
+          environment_key: Default
+      git_source:
+        git_url: https://github.com/luigi-rangel/v-credit-case
+        git_provider: gitHub
+        git_branch: main
+      queue:
+        enabled: true
+      environments:
+        - environment_key: Default
+          spec:
+            environment_version: "6"
+      performance_target: PERFORMANCE_OPTIMIZED
