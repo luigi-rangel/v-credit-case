@@ -180,6 +180,17 @@ resources:
               catalog: v_credit_case
               silver_table_name: tb_canais
               gold_table_name: dim_canal
+        - task_key: gold-cliente
+          depends_on:
+            - task_key: silver-clientes
+          notebook_task:
+            notebook_path: to_Gold/dim_clientes
+            base_parameters:
+              catalog: v_credit_case
+              silver_table_name: tb_clientes
+              gold_table_name: dim_cliente
+            source: GIT
+          environment_key: Default
         - task_key: gold-hora
           notebook_task:
             notebook_path: to_Gold/dim_hora
